@@ -30,11 +30,21 @@ To install the dependencies
 
 __Testing__
 
-> TBD
+Tests are found in `test` directory.
+
+To execute the tests
+
+    python3 -m pytest -v test
 
 __Running__
 
-> TBD
+Like any other python program
+
+    python3 src/main.py
+
+The application runs with sensible defaults. To view all of the available arguments run
+
+    python3 src/main.py --help
 
 ## Development
 

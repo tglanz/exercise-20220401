@@ -3,7 +3,7 @@ from dataclasses import dataclass
 from argparse import ArgumentParser
 from typing import Optional, Sequence, Union
 
-from vector_generation import VectorGenerator
+from vector_generation import get_supported_distributions
 
 @dataclass
 class Arguments:
@@ -34,7 +34,7 @@ def parse_args(args: Optional[Sequence[str]] = None) -> Arguments:
         help="Determines the length of the generated vectors")
 
     parser.add_argument("--generated-distribution",
-        choices=VectorGenerator.get_supported_distributions(), default="normal",
+        choices=get_supported_distributions(), default="normal",
         help="Determines the distribution to generate random values according to")
 
     parser.add_argument("--output-strategy",
