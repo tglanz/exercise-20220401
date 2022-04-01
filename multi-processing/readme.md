@@ -42,7 +42,7 @@ __Milestones__
 
 - [x] Initial project
 - [x] Main skeleton with logging and arguments
-- [ ] Vector Generation
+- [x] Vector Generation
 - [ ] Transmitter
 - [ ] Rate calcuation
 - [ ] Dropout extrapolations
