@@ -41,4 +41,10 @@ __Running__
 __Milestones__
 
 - [x] Initial project
-- [ ] ... TBD
+- [ ] Main skeleton with logging and arguments
+- [ ] Vector Generation
+- [ ] Transmitter
+- [ ] Rate calcuation
+- [ ] Dropout extrapolations
+- [ ] Analytics
+- [ ] Output generation
