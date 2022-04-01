@@ -41,7 +41,7 @@ __Running__
 __Milestones__
 
 - [x] Initial project
-- [ ] Main skeleton with logging and arguments
+- [x] Main skeleton with logging and arguments
 - [ ] Vector Generation
 - [ ] Transmitter
 - [ ] Rate calcuation
