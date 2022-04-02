@@ -3,7 +3,7 @@ Calculate the rate of occurences
 '''
 from dataclasses import dataclass
 from time import time
-from typing import List
+from typing import List, Optional
 
 import numpy
 
@@ -25,16 +25,16 @@ class RateCalculator:
         self.rates_window_size = rates_window_size
         self.rates_window = []
 
-    def on_occurence(self):
-        now = time()
-        delta = now - self.previous_occurence_time
+    def on_occurence(self, occurence_time: Optional[int] = None):
+        occurence_time = occurence_time or time()
+        delta = occurence_time - self.previous_occurence_time
         rate = 1 / delta
 
         self.rates_window.insert(0, rate)
         while len(self.rates_window) > self.rates_window_size:
             self.rates_window.pop()
 
-        self.previous_occurence_time = now
+        self.previous_occurence_time = occurence_time
 
     def get_rate(self):
         return self.rates_window[0]

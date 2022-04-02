@@ -1,18 +1,22 @@
 import logging
-from multiprocessing import Pipe
-from multiprocessing.connection import Connection
-from multiprocessing.dummy import Process
+import pickle
+import numpy as np
+from socket import socket, socketpair, timeout as SocketTimeoutError
+
+
+from multiprocessing import Process
 from multiprocessing.sharedctypes import Value
+
 from signal import SIGINT, SIGTERM, signal
 from time import sleep, time
-
 from arguments import parse_args, Arguments
-from consumer.output import FileOutput
+
+from consumer.output import FileOutput, Output
 from consumer.rate_calculator import RateCalculator
 from consumer.vectors_collector import VectorsCollector
 
 from producer.vector_generation import create_random_vector_generator
-from producer.noise_simulator import NoNoise, UniformProbabilityNoise
+from producer.noise_simulator import NoNoise, NoiseSimulator, UniformProbabilityNoise
 
 def setup_logging(log_level: str):
     logging.basicConfig(
@@ -20,10 +24,23 @@ def setup_logging(log_level: str):
         level=logging.getLevelName(log_level.upper())
     )
 
-def start_producing(args: Arguments, tx: Connection, termination_token):
+def create_output(args: Arguments) -> Output:
+    '''
+    Create an instance of an Output.
+    In the future, we might want to output the data onto databases, middlewares and such,
+    to do so we shall implement addition Output implementations accordingly.    
+    '''
+    if args.output_strategy != "file":
+        raise ValueError(f"Unsupported output strategy: {args.output_strategy}")
+    return FileOutput(args.output_file_path)
+
+def create_noise_simulator(args: Arguments) -> NoiseSimulator:
+    return UniformProbabilityNoise(args.noise_low, args.noise_high) if args.noise else NoNoise()
+
+def produce(args: Arguments, tx: socket, termination_token):
     logging.debug("Starting production")
 
-    noise = UniformProbabilityNoise(args.noise_low, args.noise_high) if args.noise else NoNoise()
+    noise = create_noise_simulator(args)
 
     generate_vector = create_random_vector_generator(
         args.generated_vector_size,
@@ -33,7 +50,7 @@ def start_producing(args: Arguments, tx: Connection, termination_token):
     last_timestamp = time()
 
     while not bool(termination_token.value):
-        vector = generate_vector()
+        vector = generate_vector().astype(np.float32)
 
         # The reason for such approach instead of just "sleep(interval)"
         # is to support the fact that perhaps (and realistically) the generate_vector
@@ -47,71 +64,88 @@ def start_producing(args: Arguments, tx: Connection, termination_token):
         if vector is None:
             logging.info("A vector has been dropped")
         else:
-            tx.send(vector)
-            logging.debug("Transmitting vector")
-            
+            buffer = pickle.dumps(vector)
+            tx.sendall(buffer)
         last_timestamp = time()
-
     logging.debug("Ending production")
 
-def start_consuming(args: Arguments, rx: Connection, termination_token):
+def consume(args: Arguments, rx: socket, termination_token):
     logging.debug("Starting consumption")
 
-    if args.output_strategy != "file":
-        raise ValueError(f"Unsupported output strategy: {args.output_strategy}")
-    output = FileOutput(args.output_file_path)
-    vectors_collector = VectorsCollector(args.output_batch_size, args.generated_vector_size)
+    vectors_collector = VectorsCollector(
+        args.output_batch_size,
+        args.generated_vector_size)
 
-    batch = 1
     interval = 1 / args.transmition_frequency
+
     rate_calculator = RateCalculator(args.rate_window_size)
     last_rate_display_time = time()
+    
+    rx.settimeout(interval * 1.5)
+    with create_output(args) as output:
+        # The batch tracking is used to seperate sections in the output
+        output_batch = 1
+        while not bool(termination_token.value):
+            buffer = None
+            try:
+                buffer = rx.recv(args.rx_chunk_size)
+            except SocketTimeoutError:
+                # In case we have timeouted it probably indicates that a packet was dropped.
+                # This is a rough heuristic and I assume there are better solutions with
+                # tighter probabilty for false positives.
+                logging.warning("Detected a vector drop")
+                rate_calculator.on_occurence(time() - interval)
+                continue
 
-    output.open()
-    while not bool(termination_token.value):
+            post_receive = time()
 
-        # I am not sure this is the most accurate approach. I assume all solutions are
-        # statistically based but there are probably tighter solutions. 
-        if not rx.poll(interval * 1.1):
-            logging.warning("Vector drop detected")
-        else:
-            vector = rx.recv()
-            vectors_collector.add_vector(vector)
-            logging.debug("Received %s", vector)
+            # Deserialize and accumulate the vector
+            try:
+                vector = pickle.loads(buffer)
+                vectors_collector.add_vector(vector)
+            except Exception as exception:
+                logging.error("Deserialization error %s", exception)
+                continue
+            
+            # Update and Show rates if needed
+            rate_calculator.on_occurence()
+            if post_receive > last_rate_display_time + args.rate_display_interval:
+                logging.info("Consumption Rate: %d", rate_calculator.get_rate())
+                last_rate_display_time = post_receive
 
-        rate_calculator.on_occurence()
-        now = time()
-        if now > last_rate_display_time + args.rate_display_interval:
-            logging.info("Consumption Rate: %d", rate_calculator.get_rate())
-            last_rate_display_time = now
+            # If a batch has been filled, write to output and reset
+            if vectors_collector.is_full():
+                output.write_header(f"Batch {output_batch}")
+                output.write_data(vectors_collector.matrix)
+                output.write_rate_statistics(rate_calculator.calculate_statistics())
+                vectors_collector.reset()
+                output_batch += 1
 
-        if vectors_collector.is_full():
-            output.write_header(f"Batch {batch}")
-            output.write_data(vectors_collector.matrix)
-            output.write_rate_statistics(rate_calculator.calculate_statistics())
-            vectors_collector.reset()
-            batch += 1
-
-    output.close()
     logging.debug("Ending consumption")
 
 def main(args: Arguments):
     setup_logging(args.log_level)
     logging.debug("Application start")
 
+    # Listen on termination signals and notify processes so they will halt as required
     termination_token = Value('i', False)
     for signum in (SIGTERM, SIGINT):
         signal(signum, lambda *_: setattr(termination_token, 'value', True))
 
-    rx, tx = Pipe(duplex=False)
-    consumer_process = Process(target=start_consuming, args=(args, rx, termination_token))
-    producer_process = Process(target=start_producing, args=(args, tx, termination_token))
+    # Create a Unix domain socket if possible, otherwise, a Network socket.
+    # An alternative, although only for ipc is using Pipes 
+    rx, tx = socketpair()
 
-    consumer_process.start()
-    producer_process.start()
+    # Create and start the relevant processes
+    processes = [
+        Process(target=consume, args=(args, rx, termination_token)),
+        Process(target=produce, args=(args, tx, termination_token))]
 
-    consumer_process.join()
-    producer_process.join()
+    for process in processes:
+        process.start()
+    
+    for process in processes:
+        process.join()
 
     logging.debug("Application finished successfuly")
 

@@ -18,6 +18,8 @@ class Arguments:
     rate_display_interval: int
     rate_window_size: int
 
+    rx_chunk_size: int
+
     output_strategy: str
     output_batch_size: int
     output_file_path: str
@@ -74,9 +76,16 @@ def parse_args(args: Optional[Sequence[str]] = None) -> Arguments:
         help="Determines the number of vectors within an output matrix")
 
     parser.add_argument("--output-file-path",
-        default="output.csv",
+        default="output.txt",
         help="If using the \"file\" output strategy, determines the path of that file")
 
-    parsed = parser.parse_known_args(args)[0]
+    # Specification of chunk size can be improved with appropriate logic
+    # First approach is computing the required size
+    # Second approach is to build the packet from small chunks
+    parser.add_argument("--rx-chunk-size",
+        default=8192, type=int,
+        help="Specify the chunk size when receiving packets an the consumer side")
+
+    parsed = parser.parse_args(args)
 
     return Arguments(**vars(parsed))

@@ -30,7 +30,9 @@ To install the dependencies
 
 __Testing__
 
-Tests are found near the testees (An alternative is to have their own directory).
+Tests are found in ```tests``` directory - Another option is near the testees. 
+
+Really, more tests should have been made. Verifying stastics are correct, rate calculation, output generation etc...
 
 To execute the tests
 
@@ -60,10 +62,9 @@ Producer
 
 Consumer
 
-- [ ] Rate calcuation
-- [ ] Dropout extrapolations
-- [ ] Analytics
-- [ ] Output generation
+- [x] Rate calcuation
+- [x] Dropout extrapolations
+- [x] Analytics and Output generation
 
 ## Design Considerations
 
@@ -79,3 +80,16 @@ Our first goal is to implement this feature, but we would like to have a design 
 Another benefit is better seperation. Specifically, the Noise is a mean to simuate external forces and it would seem a bit odd to implement such logic in the generation/transmition logic rather than bootstraping it externally.
 
 That said, in a real project and more time there can be lots of improvements to the current mechanism - From arguments, configurability, queryability and more.
+
+### Generation and Distribution abstraction
+
+Same concept as the noises
+
+## Known Issues
+
+1. After migrating to socket based communication rather than pipes, on rare occasions there is an issue in deserializing vectors. Currently it is surrounded by a try catch (not a solution of course)
+
+2. Performance is a bit on the low size. Degregaded while moving to the socket API and manually de/serializing. Options to improve
+  - Compression
+  - Multiple consumers
+

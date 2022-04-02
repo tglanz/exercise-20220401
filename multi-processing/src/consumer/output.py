@@ -1,6 +1,5 @@
 from abc import ABC, abstractmethod
 from typing import TextIO
-
 import numpy as np
 from numpy.typing import NDArray
 
@@ -19,6 +18,14 @@ class Output(ABC):
     def write_rate_statistics(self, rate_statistics: RateStatistics):
         pass
 
+    @abstractmethod
+    def __enter__(self):
+        return self.open()
+  
+    @abstractmethod
+    def __exit__(self, *rest):
+        self.close()
+
 class FileOutput:
 
     file_path: str
@@ -31,12 +38,12 @@ class FileOutput:
     def __enter__(self):
         return self.open()
   
-    def __exit__(self):
+    def __exit__(self, *rest):
         self.close()
   
     def open(self):
         self.file = open(self.file_path, 'w')
-        return self.file
+        return self
     
     def close(self):
         self.file.close()
