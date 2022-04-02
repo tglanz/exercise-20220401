@@ -1,6 +1,6 @@
 import pytest
 import itertools
-from vector_generation import create_random_vector_generator, get_supported_distributions
+from producer.vector_generation import create_random_vector_generator, get_supported_distributions
 
 @pytest.mark.parametrize("size", [ 0, -1, -123 ])
 def test_create_random_vector_generator_with_negative_size(size):

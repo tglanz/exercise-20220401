@@ -3,6 +3,8 @@ from functools import partial
 import numpy as np
 from numpy.typing import NDArray
 
+GenerateVectorFunction = Callable[[], NDArray]
+
 # We can easily add new distributions such as binomial etc...
 # This is not limited to a numpy function, rather we can provide our own
 # as long as it accept size and returns an np.array
@@ -15,7 +17,7 @@ def get_supported_distributions() -> Sequence[str]:
     '''Get a list of all of the supported distributions'''
     return DISTRIBUTION_PROVIDERS.keys()
 
-def create_random_vector_generator(size: int, distribution: str) -> Callable[[], NDArray]:
+def create_random_vector_generator(size: int, distribution: str) -> GenerateVectorFunction:
     '''
     Creates a function that generates a vector according to the provided size and distribution.
 
