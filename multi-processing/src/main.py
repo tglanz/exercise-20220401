@@ -7,6 +7,9 @@ from signal import SIGINT, SIGTERM, signal
 from time import sleep, time
 
 from arguments import parse_args, Arguments
+from consumer.output import FileOutput
+from consumer.rate_calculator import RateCalculator
+from consumer.vectors_collector import VectorsCollector
 
 from producer.vector_generation import create_random_vector_generator
 from producer.noise_simulator import NoNoise, UniformProbabilityNoise
@@ -42,10 +45,10 @@ def start_producing(args: Arguments, tx: Connection, termination_token):
 
         vector = noise.pipe(vector)
         if vector is None:
-            logging.debug("Dropped")
+            logging.info("A vector has been dropped")
         else:
-            logging.debug("Transmitting %s", vector)
             tx.send(vector)
+            logging.debug("Transmitting vector")
             
         last_timestamp = time()
 
@@ -54,17 +57,42 @@ def start_producing(args: Arguments, tx: Connection, termination_token):
 def start_consuming(args: Arguments, rx: Connection, termination_token):
     logging.debug("Starting consumption")
 
+    if args.output_strategy != "file":
+        raise ValueError(f"Unsupported output strategy: {args.output_strategy}")
+    output = FileOutput(args.output_file_path)
+    vectors_collector = VectorsCollector(args.output_batch_size, args.generated_vector_size)
+
+    batch = 1
     interval = 1 / args.transmition_frequency
+    rate_calculator = RateCalculator(args.rate_window_size)
+    last_rate_display_time = time()
+
+    output.open()
     while not bool(termination_token.value):
 
         # I am not sure this is the most accurate approach. I assume all solutions are
         # statistically based but there are probably tighter solutions. 
-        if not rx.poll(interval):
+        if not rx.poll(interval * 1.1):
             logging.warning("Vector drop detected")
         else:
             vector = rx.recv()
+            vectors_collector.add_vector(vector)
             logging.debug("Received %s", vector)
 
+        rate_calculator.on_occurence()
+        now = time()
+        if now > last_rate_display_time + args.rate_display_interval:
+            logging.info("Consumption Rate: %d", rate_calculator.get_rate())
+            last_rate_display_time = now
+
+        if vectors_collector.is_full():
+            output.write_header(f"Batch {batch}")
+            output.write_data(vectors_collector.matrix)
+            output.write_rate_statistics(rate_calculator.calculate_statistics())
+            vectors_collector.reset()
+            batch += 1
+
+    output.close()
     logging.debug("Ending consumption")
 
 def main(args: Arguments):

@@ -1,3 +1,4 @@
+from random import random
 from typing import Callable, Sequence
 from functools import partial
 import numpy as np
@@ -9,6 +10,7 @@ GenerateVectorFunction = Callable[[], NDArray]
 # This is not limited to a numpy function, rather we can provide our own
 # as long as it accept size and returns an np.array
 DISTRIBUTION_PROVIDERS = {
+    "debug": lambda size: [int(random() * 10) for _ in range(size)],
     "normal": np.random.normal,
     "uniform": np.random.uniform
 }

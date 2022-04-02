@@ -14,7 +14,12 @@ class Arguments:
     generated_vector_size: int
     generated_distribution: str
     transmition_frequency: int
+
+    rate_display_interval: int
+    rate_window_size: int
+
     output_strategy: str
+    output_batch_size: int
     output_file_path: str
 
 def parse_args(args: Optional[Sequence[str]] = None) -> Arguments:
@@ -25,7 +30,7 @@ def parse_args(args: Optional[Sequence[str]] = None) -> Arguments:
     )
 
     parser.add_argument("--log-level",
-        choices=["error", "warn", "info", "debug"], default="warn",
+        choices=["error", "warning", "info", "debug"], default="info",
         help="Determines the log's verbosity")
 
     parser.add_argument("--noise",
@@ -52,9 +57,21 @@ def parse_args(args: Optional[Sequence[str]] = None) -> Arguments:
         default=1000, type=int,
         help="Specify the frequency of transmition (Hz)")
 
+    parser.add_argument("--rate-display-interval",
+        default=1, type=int,
+        help="Specify in seconds, the interval on which to display received vectors rate")
+
+    parser.add_argument("--rate-window-size",
+        default=100, type=int,
+        help="Specify the window size on which to calculate rate statistics such as mean and std")
+
     parser.add_argument("--output-strategy",
         choices=["file"], default="file",
         help="Determines the output method")
+
+    parser.add_argument("--output-batch-size",
+        default=100, type=int,
+        help="Determines the number of vectors within an output matrix")
 
     parser.add_argument("--output-file-path",
         default="output.csv",
