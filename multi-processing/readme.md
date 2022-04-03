@@ -4,6 +4,26 @@ Demonstrate multi processing techniques by implementing 2 processes communicatin
 
 ## Execution
 
+__tl; dr__
+
+    # Prepare a python virtual environment
+    python -m venv .venv
+    
+    # Enter the virtual environment
+    source .venv/bin/activate
+    
+    # Install the dependencies
+    pip install -r requirements.txt
+    
+    # Run the tests
+    PYTHONPATH=src python -m pytest -v
+    
+    # Run with noise (Exit with Ctrl-C)
+    python src/main.py --noise
+
+    # Show help message for the application arguments
+    python src/main.py --help
+
 __Virtual Environment__
 
 It is recommended to work from within an isolated python environment to avoid collisions with the system dependencies and/or other projects.
