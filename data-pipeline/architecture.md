@@ -2,7 +2,7 @@
 
 I hope this is not too much / too little. I tried to be concise but still stay close to reality and address the core challenges. I tried to thoroughly explain my mindset for each decision and I hope it did not get over-verbose.
 
-There are many approaches one can take for such system, from full on-prem and much code, heavy open source usage up to full cloud solution. I went with a cloud solution and a strong emphasize of cost minimizations - Since S3 and EC2 were part of the boundary conditions, AWS seemed a proper choice.
+There are many approaches one can take for such system, from full on-prem and much code, heavy open source usage up to full cloud solution. I went with a cloud solution and a strong emphasize on cost minimizations - Since S3 and EC2 were part of the boundary conditions, AWS seemed a proper choice.
 
 The PDF is generated from plain text and all of the assets are open and part of the repository. 
 
@@ -259,13 +259,7 @@ SandboxEnvironmentReadyEvent | SessionIds, CallbackAddresses | EC2 instance is r
 
 Further details on the machine and the sandbox environment are discussed later as it is off topic from this service. This service only in charge of getting the request and initiate a rampup with the relevant parameters.
 
-# Diagram
-
-Architecture diagram for a single region, single AZ illustrating the above
-
-![Architecture Diagram](architecture.png)
-
-# Sandbox Environment
+# The Sandbox Environment
 
 This is the environment on newly created EC2s, containing all of the data for multiple ```Session```s.
 
@@ -278,3 +272,9 @@ The storage type we will use is the **Instance Storage**. Although extremely vol
 With regards to the EC2 instance type - We can consider provided a hardware accelerated instance such that frameworks can capitalize upon. It is highly dependant to the workloads expected to be performed from within the sandboxes.
 
 The relevant events should be triggered as part of the bootstraping script.
+
+# Diagram
+
+Architecture diagram for a single region, single AZ illustrating the above
+
+![Architecture Diagram](architecture.png)
